@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="apple-touch-icon" href="https://augustineiacopelli.github.io/appaday/icons/191.png">
+<meta name="apple-mobile-web-app-title" content="Text Diff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="manifest" href="https://augustineiacopelli.github.io/appaday/manifests/191.webmanifest">
+<script src="https://augustineiacopelli.github.io/appaday/save.js" defer></script>
+<title>Text Diff | AppADay 191</title>
+<meta name="description" content="Paste two versions of any text and see exactly what changed, by words, lines, or characters. Runs offline in your browser.">
+<style>
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --panel2: #1c232d;
+  --line: #30363d;
+  --text: #e6edf3;
+  --muted: #9aa4af;
+  --amber: #ffb347;
+  --amber-dim: #e39a2e;
+  --add: #56d364;
+  --add-bg: rgba(46, 160, 67, 0.22);
+  --del: #ff7b72;
+  --del-bg: rgba(248, 81, 73, 0.22);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+a { color: var(--amber); }
+a:focus-visible, button:focus-visible, textarea:focus-visible,
+.seg input:focus-visible + span, .chk input:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+header .back, footer .back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.25rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+header .back:hover, footer .back:hover { text-decoration: underline; }
+.badge {
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  border-radius: 999px;
+  padding: 0.1rem 0.7rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+main {
+  flex: 1;
+  width: 100%;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+h1 { margin: 0; font-size: 1.75rem; line-height: 1.2; }
+.sub { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.95rem; }
+.inputs { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
+.field { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.field label { font-weight: 600; font-size: 0.95rem; }
+textarea {
+  width: 100%;
+  min-height: 9rem;
+  resize: vertical;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+textarea::placeholder { color: #7d8792; }
+.bar { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 1.1rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+button:hover { border-color: var(--amber); }
+button.primary {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #0d1117;
+}
+button.primary:hover { background: #ffc46b; }
+button[aria-pressed="true"] {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #0d1117;
+}
+.opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  align-items: center;
+}
+.chk {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 44px;
+  cursor: pointer;
+}
+.chk input { width: 1.4rem; height: 1.4rem; margin: 0; accent-color: var(--amber); }
+fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+legend { padding: 0; font-weight: 600; font-size: 0.95rem; margin-bottom: 0.35rem; }
+.segs {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.seg { position: relative; display: block; }
+.seg input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.seg span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 1rem;
+  font-weight: 600;
+  color: var(--muted);
+  border-right: 1px solid var(--line);
+}
+.seg:last-child span { border-right: 0; }
+.seg input:checked + span { background: var(--amber); color: #0d1117; }
+.row2 { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; align-items: flex-end; }
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.stats li {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.25rem 0.8rem;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+.stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+.stats li.add b { color: var(--add); }
+.stats li.del b { color: var(--del); }
+.stats li.sim b { color: var(--amber); }
+.msg {
+  margin: 0;
+  min-height: 1.5rem;
+  color: var(--amber);
+  font-size: 0.95rem;
+}
+.notice {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--amber-dim);
+  background: rgba(255, 179, 71, 0.1);
+  border-radius: 10px;
+  font-size: 0.95rem;
+}
+.hidden { display: none !important; }
+.result { display: grid; grid-template-columns: 1fr; gap: 0.75rem; }
+.result.side { grid-template-columns: 1fr 1fr; }
+.pane {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  min-width: 0;
+}
+.pane h2 {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.pane .body {
+  margin: 0;
+  padding: 0.75rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  min-height: 3rem;
+}
+ins, del { text-decoration-thickness: 2px; border-radius: 3px; }
+ins { color: var(--add); background: var(--add-bg); text-decoration: underline; }
+del { color: var(--del); background: var(--del-bg); text-decoration: line-through; }
+.empty { color: var(--muted); font-style: italic; }
+.manual {
+  width: 100%;
+  min-height: 7rem;
+}
+footer {
+  border-top: 1px solid var(--line);
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  color: var(--muted);
+  font-size: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+@media (min-width: 700px) {
+  .inputs { grid-template-columns: 1fr 1fr; }
+  main { padding: 1.25rem 1.5rem; }
+  header { padding: 0.75rem 1.5rem; }
+  footer { padding-left: 1.5rem; padding-right: 1.5rem; }
+}
+@media (min-width: 1000px) {
+  main { max-width: 72rem; margin-left: auto; margin-right: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="https://augustineiacopelli.github.io/appaday/">AppADay</a>
+  <span class="badge">191</span>
+</header>
+<main>
+  <div>
+    <h1>Text Diff</h1>
+    <p class="sub">Paste two versions and see exactly what changed.</p>
+  </div>
+
+  <div class="inputs">
+    <div class="field">
+      <label for="orig">Original</label>
+      <textarea id="orig" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" placeholder="Paste the original text here"></textarea>
+    </div>
+    <div class="field">
+      <label for="chg">Changed</label>
+      <textarea id="chg" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" placeholder="Paste the changed text here"></textarea>
+    </div>
+  </div>
+
+  <div class="bar">
+    <button type="button" id="btnCompare" class="primary">Compare</button>
+    <button type="button" id="btnSwap">Swap</button>
+    <button type="button" id="btnClear">Clear</button>
+  </div>
+
+  <div class="row2">
+    <div class="opts">
+      <label class="chk"><input type="checkbox" id="optCase"><span>Ignore Case</span></label>
+      <label class="chk"><input type="checkbox" id="optWs"><span>Ignore Whitespace</span></label>
+    </div>
+    <fieldset>
+      <legend id="lgMode">Compare by</legend>
+      <div class="segs" role="radiogroup" aria-labelledby="lgMode">
+        <label class="seg"><input type="radio" name="mode" value="words" checked><span>Words</span></label>
+        <label class="seg"><input type="radio" name="mode" value="lines"><span>Lines</span></label>
+        <label class="seg"><input type="radio" name="mode" value="chars"><span>Characters</span></label>
+      </div>
+    </fieldset>
+  </div>
+
+  <div class="row2">
+    <div>
+      <div class="opts" style="margin-bottom:0.35rem"><strong style="font-size:0.95rem">View</strong></div>
+      <div class="segs" role="group" aria-label="View">
+        <button type="button" id="viewInline" aria-pressed="true" style="border:0;border-radius:0">Inline</button>
+        <button type="button" id="viewSide" aria-pressed="false" style="border:0;border-radius:0;border-left:1px solid var(--line)">Side by Side</button>
+      </div>
+    </div>
+    <button type="button" id="btnCopy">Copy Unified Diff</button>
+  </div>
+
+  <p class="msg" id="msg" role="status" aria-live="polite"></p>
+  <p class="notice hidden" id="notice" role="status"></p>
+  <ul class="stats hidden" id="stats" aria-label="Comparison statistics"></ul>
+  <div id="manualWrap" class="hidden">
+    <label for="manual" style="font-weight:600;font-size:0.95rem">Copy was blocked. Select this text and copy it yourself.</label>
+    <textarea id="manual" class="manual" readonly></textarea>
+  </div>
+  <div id="out" class="result" aria-live="off"></div>
+</main>
+<footer>
+  <span>Text Diff, AppADay 191. Everything runs in your browser. Nothing is sent or stored.</span>
+  <a class="back" href="https://augustineiacopelli.github.io/appaday/">Back to the AppADay portfolio</a>
+</footer>
+
+<script>
+/* ENGINE_START */
+var MAX_CELLS = 4000000;
+
+function normalize(text) {
+  return String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+}
+
+function tokenize(text, mode) {
+  var t = normalize(text);
+  if (t === '') return [];
+  if (mode === 'chars') return Array.from(t);
+  if (mode === 'lines') return t.match(/[^\n]*\n|[^\n]+$/g) || [];
+  return t.match(/\s+|\S+/g) || [];
+}
+
+function key(token, mode, opts) {
+  var k = token;
+  if (mode === 'lines' && k.charAt(k.length - 1) === '\n') k = k.slice(0, -1);
+  if (opts && opts.ignoreWhitespace) k = k.replace(/\s+/g, '');
+  if (opts && opts.ignoreCase) k = k.toLowerCase();
+  return k;
+}
+
+function weight(token, mode) {
+  if (mode === 'words') return /\S/.test(token) ? 1 : 0;
+  return 1;
+}
+
+function lcsOps(ka, kb) {
+  var n = ka.length, m = kb.length, s = 0, i, j;
+  while (s < n && s < m && ka[s] === kb[s]) s++;
+  var ea = n, eb = m;
+  while (ea > s && eb > s && ka[ea - 1] === kb[eb - 1]) { ea--; eb--; }
+  var ops = [];
+  for (i = 0; i < s; i++) ops.push({ t: 'eq', i: i, j: i });
+  var N = ea - s, M = eb - s, tooBig = false;
+  if (N === 0 || M === 0) {
+    for (i = s; i < ea; i++) ops.push({ t: 'del', i: i });
+    for (j = s; j < eb; j++) ops.push({ t: 'add', j: j });
+  } else if ((N + 1) * (M + 1) > MAX_CELLS) {
+    tooBig = true;
+    for (i = s; i < ea; i++) ops.push({ t: 'del', i: i });
+    for (j = s; j < eb; j++) ops.push({ t: 'add', j: j });
+  } else {
+    var ids = new Map();
+    var A = new Uint32Array(N), B = new Uint32Array(M);
+    var intern = function (k) {
+      var v = ids.get(k);
+      if (v === undefined) { v = ids.size; ids.set(k, v); }
+      return v;
+    };
+    for (i = 0; i < N; i++) A[i] = intern(ka[s + i]);
+    for (j = 0; j < M; j++) B[j] = intern(kb[s + j]);
+    var W = M + 1;
+    var L = new Uint32Array((N + 1) * W);
+    for (i = N - 1; i >= 0; i--) {
+      for (j = M - 1; j >= 0; j--) {
+        L[i * W + j] = A[i] === B[j]
+          ? L[(i + 1) * W + j + 1] + 1
+          : Math.max(L[(i + 1) * W + j], L[i * W + j + 1]);
+      }
+    }
+    i = 0; j = 0;
+    while (i < N && j < M) {
+      if (A[i] === B[j]) { ops.push({ t: 'eq', i: s + i, j: s + j }); i++; j++; }
+      else if (L[(i + 1) * W + j] >= L[i * W + j + 1]) { ops.push({ t: 'del', i: s + i }); i++; }
+      else { ops.push({ t: 'add', j: s + j }); j++; }
+    }
+    while (i < N) { ops.push({ t: 'del', i: s + i }); i++; }
+    while (j < M) { ops.push({ t: 'add', j: s + j }); j++; }
+  }
+  for (i = 0; ea + i < n; i++) ops.push({ t: 'eq', i: ea + i, j: eb + i });
+  return { ops: ops, tooBig: tooBig };
+}
+
+function mergeRuns(raw) {
+  var out = [];
+  for (var x = 0; x < raw.length; x++) {
+    var r = raw[x], last = out[out.length - 1];
+    if (last && last.type === r.type) {
+      last.a += r.a; last.b += r.b; last.n += r.n;
+    } else {
+      out.push({ type: r.type, a: r.a, b: r.b, n: r.n });
+    }
+  }
+  return out;
+}
+
+function buildRuns(textA, textB, mode, opts) {
+  var ta = tokenize(textA, mode), tb = tokenize(textB, mode);
+  var ka = ta.map(function (t) { return key(t, mode, opts); });
+  var kb = tb.map(function (t) { return key(t, mode, opts); });
+  var res = lcsOps(ka, kb), raw = [];
+  for (var x = 0; x < res.ops.length; x++) {
+    var op = res.ops[x];
+    if (op.t === 'eq') raw.push({ type: 'eq', a: ta[op.i], b: tb[op.j], n: weight(tb[op.j], mode) });
+    else if (op.t === 'del') raw.push({ type: 'del', a: ta[op.i], b: '', n: weight(ta[op.i], mode) });
+    else raw.push({ type: 'add', a: '', b: tb[op.j], n: weight(tb[op.j], mode) });
+  }
+  return { runs: mergeRuns(raw), tooBig: res.tooBig };
+}
+
+function diff(textA, textB, mode, opts) {
+  var want = (mode === 'lines' || mode === 'chars') ? mode : 'words';
+  var used = want, notice = '';
+  var r = buildRuns(textA, textB, used, opts);
+  if (r.tooBig && used !== 'lines') {
+    used = 'lines';
+    r = buildRuns(textA, textB, used, opts);
+    notice = 'Input too large to compare by ' + (want === 'chars' ? 'characters' : 'words') + '. Compared by lines instead.';
+  }
+  if (r.tooBig) {
+    notice = 'Input too large to compare in detail. The changed section is shown as one removed block and one added block.';
+  }
+  return { runs: r.runs, mode: used, notice: notice, tooBig: r.tooBig };
+}
+
+function stats(runs) {
+  var added = 0, removed = 0, unchanged = 0, changed = false;
+  for (var x = 0; x < runs.length; x++) {
+    var r = runs[x];
+    if (r.type === 'add') { added += r.n; changed = true; }
+    else if (r.type === 'del') { removed += r.n; changed = true; }
+    else unchanged += r.n;
+  }
+  var total = (unchanged + removed) + (unchanged + added);
+  var sim = total === 0 ? 100 : Math.round(1000 * 2 * unchanged / total) / 10;
+  if (changed && sim >= 100) sim = 99.9;
+  return { added: added, removed: removed, unchanged: unchanged, similarity: sim, changed: changed };
+}
+
+function unifiedDiff(textA, textB, opts, context) {
+  var ctx = context == null ? 3 : context;
+  var strip = function (t) { return t.charAt(t.length - 1) === '\n' ? t.slice(0, -1) : t; };
+  var ta = tokenize(textA, 'lines').map(strip), tb = tokenize(textB, 'lines').map(strip);
+  var ka = ta.map(function (t) { return key(t, 'lines', opts); });
+  var kb = tb.map(function (t) { return key(t, 'lines', opts); });
+  var ops = lcsOps(ka, kb).ops, changes = [], x;
+  for (x = 0; x < ops.length; x++) if (ops[x].t !== 'eq') changes.push(x);
+  if (!changes.length) return '';
+  var oldBefore = [], newBefore = [], o = 0, w = 0;
+  for (x = 0; x < ops.length; x++) {
+    oldBefore[x] = o; newBefore[x] = w;
+    if (ops[x].t !== 'add') o++;
+    if (ops[x].t !== 'del') w++;
+  }
+  var groups = [], gs = changes[0], ge = changes[0];
+  for (x = 1; x < changes.length; x++) {
+    if (changes[x] - ge - 1 <= 2 * ctx) ge = changes[x];
+    else { groups.push([gs, ge]); gs = changes[x]; ge = changes[x]; }
+  }
+  groups.push([gs, ge]);
+  var range = function (start0, count) {
+    if (count === 0) return start0 + ',0';
+    return String(start0 + 1) + (count === 1 ? '' : ',' + count);
+  };
+  var out = ['--- Original', '+++ Changed'];
+  for (var g = 0; g < groups.length; g++) {
+    var from = Math.max(0, groups[g][0] - ctx);
+    var to = Math.min(ops.length, groups[g][1] + 1 + ctx);
+    var oc = 0, nc = 0, body = [];
+    for (x = from; x < to; x++) {
+      var op = ops[x];
+      if (op.t === 'eq') { oc++; nc++; body.push(' ' + tb[op.j]); }
+      else if (op.t === 'del') { oc++; body.push('-' + ta[op.i]); }
+      else { nc++; body.push('+' + tb[op.j]); }
+    }
+    out.push('@@ -' + range(oldBefore[from], oc) + ' +' + range(newBefore[from], nc) + ' @@');
+    for (x = 0; x < body.length; x++) out.push(body[x]);
+  }
+  return out.join('\n') + '\n';
+}
+/* ENGINE_END */
+
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var elA = $('orig'), elB = $('chg'), out = $('out');
+  var elStats = $('stats'), elNotice = $('notice'), elMsg = $('msg');
+  var btnInline = $('viewInline'), btnSide = $('viewSide');
+  var viewChoice = null, lastRes = null, msgTimer = 0;
+  var mq = window.matchMedia ? window.matchMedia('(max-width: 599px)') : null;
+
+  function make(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+  function currentView() {
+    if (viewChoice) return viewChoice;
+    return (mq && mq.matches) ? 'inline' : 'side';
+  }
+  function getOpts() {
+    return { ignoreCase: $('optCase').checked, ignoreWhitespace: $('optWs').checked };
+  }
+  function getMode() {
+    var r = document.querySelector('input[name="mode"]:checked');
+    return r ? r.value : 'words';
+  }
+  function say(text) {
+    elMsg.textContent = text;
+    if (msgTimer) clearTimeout(msgTimer);
+    if (text) msgTimer = setTimeout(function () { elMsg.textContent = ''; }, 2500);
+  }
+
+  function paint(parent, runs, side) {
+    runs.forEach(function (r) {
+      var txt;
+      if (side === 'a') {
+        if (r.type === 'add') return;
+        txt = r.a;
+      } else if (side === 'b') {
+        if (r.type === 'del') return;
+        txt = r.b;
+      } else {
+        txt = r.type === 'del' ? r.a : r.b;
+      }
+      if (!txt) return;
+      if (r.type === 'eq') parent.appendChild(document.createTextNode(txt));
+      else parent.appendChild(make(r.type === 'add' ? 'ins' : 'del', null, txt));
+    });
+  }
+
+  function pane(title, runs, side) {
+    var box = make('section', 'pane');
+    box.appendChild(make('h2', null, title));
+    var body = make('div', 'body');
+    paint(body, runs, side);
+    box.appendChild(body);
+    return box;
+  }
+
+  function renderStats(st, unit) {
+    clearNode(elStats);
+    var label = function (n) {
+      var u = unit;
+      if (n === 1) u = unit === 'characters' ? 'character' : unit.replace(/s$/, '');
+      return n + ' ' + u;
+    };
+    var items = [
+      ['add', 'Added', label(st.added)],
+      ['del', 'Removed', label(st.removed)],
+      ['', 'Unchanged', label(st.unchanged)],
+      ['sim', 'Similarity', st.similarity + '%']
+    ];
+    items.forEach(function (it) {
+      var li = make('li', it[0]);
+      li.appendChild(document.createTextNode(it[1] + ' '));
+      li.appendChild(make('b', null, it[2]));
+      elStats.appendChild(li);
+    });
+    elStats.classList.remove('hidden');
+  }
+
+  function renderOutput() {
+    clearNode(out);
+    btnInline.setAttribute('aria-pressed', String(currentView() === 'inline'));
+    btnSide.setAttribute('aria-pressed', String(currentView() === 'side'));
+    if (!lastRes) return;
+    var runs = lastRes.res.runs;
+    if (lastRes.empty) {
+      out.className = 'result';
+      out.appendChild(make('p', 'empty', 'Both boxes are empty. Paste some text to compare.'));
+      return;
+    }
+    if (currentView() === 'side') {
+      out.className = 'result side';
+      out.appendChild(pane('Original', runs, 'a'));
+      out.appendChild(pane('Changed', runs, 'b'));
+    } else {
+      out.className = 'result';
+      out.appendChild(pane('Differences', runs, 'inline'));
+    }
+  }
+
+  function compare() {
+    var a = elA.value, b = elB.value;
+    var res = diff(a, b, getMode(), getOpts());
+    var st = stats(res.runs);
+    var unit = res.mode === 'chars' ? 'characters' : res.mode;
+    lastRes = { res: res, st: st, empty: (a === '' && b === '') };
+    if (res.notice) { elNotice.textContent = res.notice; elNotice.classList.remove('hidden'); }
+    else { elNotice.textContent = ''; elNotice.classList.add('hidden'); }
+    if (lastRes.empty) elStats.classList.add('hidden');
+    else renderStats(st, unit);
+    renderOutput();
+    if (!lastRes.empty && !st.changed) say('No differences found.');
+  }
+
+  function recompareIfShown() { if (lastRes) compare(); }
+
+  function clearAll() {
+    elA.value = ''; elB.value = '';
+    lastRes = null;
+    clearNode(out);
+    elStats.classList.add('hidden');
+    elNotice.classList.add('hidden');
+    $('manualWrap').classList.add('hidden');
+    say('');
+    elA.focus();
+  }
+
+  function swap() {
+    var t = elA.value; elA.value = elB.value; elB.value = t;
+    recompareIfShown();
+    say('Swapped.');
+  }
+
+  function legacyCopy(text) {
+    var ta = make('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'absolute';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+
+  function showManual(text) {
+    var box = $('manual');
+    box.value = text;
+    $('manualWrap').classList.remove('hidden');
+    box.focus();
+    box.select();
+  }
+
+  function copyDiff() {
+    var text = unifiedDiff(elA.value, elB.value, getOpts(), 3);
+    if (!text) { say('No differences to copy.'); return; }
+    var done = function (ok) {
+      if (ok) { $('manualWrap').classList.add('hidden'); say('Unified diff copied.'); }
+      else showManual(text);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(legacyCopy(text)); });
+    } else {
+      done(legacyCopy(text));
+    }
+  }
+
+  $('btnCompare').addEventListener('click', function () {
+    compare();
+    try { out.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { /* ignore */ }
+  });
+  $('btnSwap').addEventListener('click', swap);
+  $('btnClear').addEventListener('click', clearAll);
+  $('btnCopy').addEventListener('click', copyDiff);
+  $('optCase').addEventListener('change', recompareIfShown);
+  $('optWs').addEventListener('change', recompareIfShown);
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="mode"]'), function (r) {
+    r.addEventListener('change', recompareIfShown);
+  });
+  btnInline.addEventListener('click', function () { viewChoice = 'inline'; renderOutput(); });
+  btnSide.addEventListener('click', function () { viewChoice = 'side'; renderOutput(); });
+  [elA, elB].forEach(function (t) {
+    t.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); compare(); }
+    });
+  });
+  if (mq) {
+    var onChange = function () { if (!viewChoice) renderOutput(); };
+    if (mq.addEventListener) mq.addEventListener('change', onChange);
+    else if (mq.addListener) mq.addListener(onChange);
+  }
+  renderOutput();
+})();
+</script>
+</body>
+</html>
